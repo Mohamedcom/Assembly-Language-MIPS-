@@ -51,26 +51,26 @@
 .end_macro
 # ---- count & read & print elements ---- #
 .macro counter(%msg, %i)
-push ($v0)
-addiu %i,%i,1
-la	$a0, %msg
-move	$v0, $a0
-li	$v0, 4
-syscall
-move	$a0, %i
-li	$v0, 1
-syscall
-char	('\n')
-li	$v0, 5
-syscall
-move	$a0, $v0
-addiu %i,%i,-1
-pop ($v0)
+	push	($v0)
+	addiu 	 %i,%i,1
+	la	 $a0, %msg
+	move	 $v0, $a0
+	li	 $v0, 4
+	syscall
+	move	 $a0, %i
+	li	 $v0, 1
+	syscall
+	char	('\n')
+	li	 $v0, 5
+	syscall
+	move	 $a0, $v0
+	addiu	 %i,%i,-1
+	pop	($v0)
 .end_macro
 # ---- locate the address of %x in the array ---- #
 .macro address(%x, %y)
-sll %y, %x, 2
-addu %y, %y, $v0
+	sll	 %y, %x, 2
+	addu	 %y, %y, $v0
 .end_macro
 ######################## - - - - - Messages - - - - - ########################
 .data 
