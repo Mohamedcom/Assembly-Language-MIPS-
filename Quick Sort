@@ -1,0 +1,208 @@
+######################## - - - - - Macros - - - - - ########################
+# ---- To return address of ra ---- #
+.macro call(%s)
+	addiu	 $sp, $sp,-4
+	sw	 $ra,($sp)
+	jal	 %s
+	lw	 $ra,($sp)
+	addiu	 $sp, $sp, 4
+.end_macro
+# ---- Push to The Stack ---- #
+.macro push(%x)
+	addiu	 $sp, $sp,-4
+	sw	 %x, ($sp)
+.end_macro
+# ---- Pop from The Stack ---- #
+.macro pop(%x)
+	lw	 %x, ($sp)
+	addiu	 $sp, $sp, 4
+.end_macro
+# ---- print character ---- #
+.macro char(%c)
+	push	($v0)
+	li	 $v0, 11
+	li	 $a0,%c
+	syscall
+	pop	($v0)
+.end_macro
+# ---- execute the program ---- #
+.macro exit 
+	li	 $v0, 10 
+	syscall  
+.end_macro
+# ---- print message ---- #
+.macro msg(%y)
+	push	($v0)
+	la	 $a0, %y 
+	move	 $v0, $a0
+	li	 $v0, 4
+	syscall
+	pop	($v0)
+.end_macro
+# ---- read number of n ---- #
+.macro read_int(%y)
+	push	($v0)
+	msg	(%y)
+	char	('\n')
+	li	 $v0, 5
+	syscall
+	move	 $v1, $v0
+	pop	($v0)
+.end_macro
+# ---- count & read & print elements ---- #
+.macro counter(%msg, %i)
+push ($v0)
+addiu %i,%i,1
+la	$a0, %msg
+move	$v0, $a0
+li	$v0, 4
+syscall
+move	$a0, %i
+li	$v0, 1
+syscall
+char	('\n')
+li	$v0, 5
+syscall
+move	$a0, $v0
+addiu %i,%i,-1
+pop ($v0)
+.end_macro
+# ---- locate the address of %x in the array ---- #
+.macro address(%x, %y)
+sll %y, %x, 2
+addu %y, %y, $v0
+.end_macro
+######################## - - - - - Messages - - - - - ########################
+.data 
+size:	.asciiz "Enter N size of the array, and N must be greater than 1"
+read:	.asciiz "Enter element #"
+Before: .asciiz "- - - - - Before Sorting - - - - -\n"
+After: 	.asciiz "- - - - -  After Sorting - - - - -\n"
+######################## - - - - - MAIN PROGRAM - - - - - ########################
+.text
+	jal 		 read_array		#call read array
+	jal 		 print_array		#call print array
+	char		('\n')			#print new line
+	jal 		 quick_sort		#call quick sort
+	jal 		 print_array		#call print array
+	exit					#exexcute the program     
+######################## - - - - - PRINT ARRAY - - - - - ########################
+print_array: #Display the n elements of array[]
+	li		 $t0,0			#int i=0
+	bnez		 $t9,sorted		#check if the array is sorted
+	msg		(Before)		#print message "before sorting"
+	j print					#next
+   sorted:
+   	msg		(After)			#print message "after sorting"
+   print:
+	push		($v0)
+	address		($t0, $s0)		#address of array[i]
+	lw		 $a0, ($s0)		#array[i]
+	li		 $v0, 1			#print array[i]
+	syscall
+	addiu		 $t0,$t0,1		#i++
+	pop		($v0)			#return address of array[0]
+	bge		 $t0, $v1, end_print
+	char		(' ')			#space between #array[i] and array[i+1]
+	j		 print			#loop
+   end_print:
+   	jr		 $ra			#end printing
+######################## - - - - - READ ARRAY - - - - - ########################
+read_array:	
+# Ask the user to enter n (must be greater than 1) #
+# and return n in $v1
+   greater:
+	read_int	(size)			#read int n
+	ble		 $v1, 1, greater	#if n>1 ==> accept, else: loop
+# allocate the array dynamically #
+#and return the address of the array[] in $v0
+	sll		 $a0, $a0, 2		#multiply by 4
+	li 		 $v0, 9			#creating a dynamic array
+	syscall	# $v0 contains base address   $v0 = 0x10040000
+	li		 $t0,0			#int i=0
+# Ask the user to input n elements of type int
+# The user input should be stored in array[]
+   Array:
+   	bge		 $t0, $v1, end_read	#i<n
+	counter		(read,$t0)		#count & read & print elements
+	address		($t0, $s0)		#address of array[i]
+	sw		 $a0,($s0)		#array[i]
+	addiu 		 $t0, $t0,1		#i++
+	j		 Array			#loop
+   end_read:
+   	andi		 $t9, 0			#for a sort message
+	jr		 $ra			#end reading
+######################## - - - - - QUICK SORT - - - - - ########################
+quick_sort:
+	li		 $s0,  0		#i= low index
+	addiu		 $s1, $v1,-1		#j= high index
+	srl		 $s2, $s1, 1		#i+j/2
+	address		($s2, $t2)		#address of array[(i+j)/2]
+	lw 		 $t2,($t2)		#pivot = middle value
+#	- - - - - - - - - - - - - - - - -	#
+ while:	# while (i <= j)
+	bgt		 $s0, $s1, recursive_1	#while(i<=j)
+   arrayI: # while (array[i] < pivot) i++
+	address		($s0, $t0)		#address of array[i]
+	lw		 $t0,($t0)		#array[i]
+	bge		 $t0, $t2, arrayJ	#while (array[i] < pivot)
+	addiu		 $s0, $s0, 1		#i++
+	j 	 	 arrayI
+#	- - - - - - - - - - - - - - - - -	#
+   arrayJ: # while (array[j] > pivot) j--
+	address		($s1, $t1)		#address of array[j]
+	lw 		 $t1,($t1)		#array[j]
+	ble		 $t1, $t2, swap		#while (array[j] > pivot)
+	addiu		 $s1, $s1, -1		#j--
+	j		 arrayJ
+#	- - - - - - - - - - - - - - - - -	#
+   swap: #swap array[i] with array[j]
+	bgt		 $s0, $s1, while	#if (i<=j)
+	address		($s0, $t0)		#address of array[i]
+	address		($s1, $t1)		#address of array[j]
+	lw		 $t3,($t0)		#temp = array[i]
+	lw		 $t4,($t1)		#array[j]
+	# -------- SWAP -------- #		
+	sw		 $t4,($t0)		#array[i] = array[j]
+	sw		 $t3,($t1)		#array[j] = temp
+	# ====================== #
+	addiu 		 $s0, $s0, 1		#i++
+	addiu		 $s1, $s1,-1		#j--
+	j		 while			#while (i<=j)
+#	- - - - - - - - - - - - - - - - -	#
+   recursive_1: #if (j > 0) quick_sort(&array[0], j+1); 
+	blez		 $s1, recursive_2
+	# -------- STORE -------- #
+	push		($s0)			#Store the value of i
+     	push		($v1)			#Store the value of n
+     	# ======================= #
+	addiu		 $v1, $s1, 1		#n=j+1
+	call	 	(quick_sort)		#recursive call 1
+	# -------- Return -------- #
+	pop		($v1)			#return the value of n
+     	pop		($s0)			#Store the value of i
+     	# ======================== #
+#	- - - - - - - - - - - - - - - - -	#
+   recursive_2: #if (j > 0) quick_sort(&array[0], j+1); 
+	addiu		 $v1, $v1,-1		#n-1
+	bge		 $s0, $v1, end_sort	#i<n-1
+	addiu		 $v1, $v1,1		#return the value of n
+	address		($s0, $t0)		#get the address of array[i]
+	# -------- STORE -------- #
+     	push		($v0)			#Store the address of array[0]
+     	push		($v1)			#Store the value of n
+     	# ======================= #
+	move		 $v0, $t0		#array[0]==>array[i]
+	subu		 $v1, $v1, $s0		#n-i
+	call		(quick_sort)		#recursive call 2
+	# -------- Return -------- #
+	pop		($v1)			#return the value of n
+	pop		($v0)			#return the address of array[0]
+	# ======================== #
+	ori		 $t9,1			#for a sort message
+     	jr		 $ra			#return the result
+#	- - - - - - - - - - - - - - - - -	#
+   end_sort: #return sorted array
+	addiu		 $v1, $v1,1		#return the value of n
+	ori		 $t9,1			#for a sort message
+	jr 		 $ra			#return the result
