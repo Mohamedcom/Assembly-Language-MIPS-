@@ -1,0 +1,179 @@
+#<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<Messages>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+.data
+intN:	.asciiz	 "Enter N: "
+matrix:	.asciiz	 "----------Matrix----------"
+vector:	.asciiz	 "----------Vector----------"
+result:	.asciiz	 "----------Result----------"
+VO:	.asciiz  "Vector output["
+VP:	.asciiz  "Vector input ["
+MP:	.asciiz  "Matrix input ["
+pr:	.asciiz  "]: "
+zero:	.float	 0
+one:	.float	 1
+#<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<Macros>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+#------- new line ----------
+.macro nl
+	li	 $a0, '\n'
+	li	 $v0, 11
+	syscall
+.end_macro
+.macro count (%x, %m)
+#------- print order -------
+	la	 $a0, %m
+	li	 $v0, 4
+	syscall
+	move	 $a0, %x
+	li	 $v0, 1
+	syscall
+	la	 $a0, pr
+	li	 $v0, 4
+	syscall
+	addiu	 %x, %x, 1
+.end_macro
+.text
+#<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<Main Function>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+#-------Ask User to input n(float) -----
+	la	 $a0, intN
+	li	 $v0, 4
+	syscall
+	li	 $v0, 5
+	syscall
+	move	 $v1, $v0		# Store n in $v1
+#-------Call read_matrix function ------
+	jal read_matrix			# $s0 = address of matrix
+	move	 $s1, $s0		# move the address to $s1
+#-------Call vector_matrix function ----
+	jal read_vector			# $s0 = address of vector
+	move	 $s2, $s0		# move the address to $s2
+#-------Call MVM function --------------
+	jal	 MVM			# matrix-vector multiplication ($s1 X $s2)
+#-------Call Print function ------------
+	jal	 print_vector		# To print a vector, move V to $s0
+	li	 $v0, 10		# Exit
+	syscall
+#<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<Read Matrix>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+read_matrix:
+#-------Print Matrix Message ----------
+	la	 $a0, matrix
+	li	 $v0, 4
+	syscall
+	nl
+#-------Allocate an array of nxn floats
+	move	 $a0, $v1		# argument[0] = n
+	mul	 $a0, $a0, $a0		# matrix of n*n
+	mtc1	 $a0, $f1		# change type of nxn to float
+	cvt.s.w	 $f1, $f1		# $f1: n*n
+	sll	 $a0, $a0, 2		# float = 4 bytes
+	li	 $v0, 9
+	syscall
+	move	 $s1, $v0		# $s1 = address of matrix
+	move	 $s0, $s1		# temp = $s1
+#-------Reset main variables -----------	
+	l.s	 $f10, zero		# $f10: i = index 0
+	l.s	 $f11, one		# $f11: ==> to increment i
+	li	 $t0, 1			# $t0 = index i
+#-------Ask the user to input n^2 ------
+rME:	count	 ($t0, MP)		# count inputs of matrix
+	li	 $v0, 6
+	syscall
+	s.s	 $f0, ($s0)		# store matrix inputs $s1
+	addiu	 $s0, $s0, 4		# index of memory locations +1
+	add.s	 $f10, $f10, $f11	# $f10 = i++
+	c.lt.s	 $f10, $f1		# while i<nxn 
+	bc1t	 rME			# loop to read matrix element (rME)
+	move	 $s0, $s1		# return address of matrix into $s0
+#-------Return to the main function-----
+	jr	 $ra
+#<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<Read Vector>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+read_vector:
+#-------Print Vector Message ----------
+	la	 $a0, vector
+	li	 $v0, 4
+	syscall
+	nl
+#-------Allocate an array of n floats -
+	move	 $a0, $v1		# argument[0] = n
+	mtc1	 $a0, $f2		# change type of n to float
+	cvt.s.w	 $f2, $f2		# $f2: n
+	sll	 $a0, $a0, 2		# float = 4 bytes
+	li	 $v0, 9
+	syscall
+	move	 $s2, $v0		# $s2 = address of vector
+	move	 $s0, $s2		# temp = $s2
+#-------Reset main variables -----------	
+	l.s	 $f10, zero		# $f10: i = index 0
+	l.s	 $f11, one		# $f11: ==> to increment i
+	li	 $t0, 1			# $t0 = index i
+#-------Ask the user to input n --------
+rVE:	count	 ($t0, VP)		# count inputs of vector
+	li	 $v0, 6
+	syscall	
+	s.s	 $f0, ($s0)		# store vector inputs in $s2
+	addiu	 $s0, $s0, 4		# index of memory locations +1
+	add.s	 $f10, $f10, $f11	# $f10 = i++
+	c.lt.s	 $f10, $f2		# while i<n 
+	bc1t	 rVE			# loop to read vector element (rVE)
+	move	 $s0, $s2		# return address of vector into $s0
+#-------Return to the main function-----
+	jr	 $ra
+#<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<Print Vector>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>	
+print_vector:
+#-------Print Result Message ----------
+	la	 $a0, result
+	li	 $v0, 4
+	syscall
+	nl
+#-------Reset main variables -----------	
+	l.s	 $f10, zero		# $f10: i = index 0
+	l.s	 $f11, one		# $f11: ==> to increment i
+	li	 $t0, 1			# $t0 = index i
+#-------Print vecotr of size n ---------
+pVE:	count	 ($t0, VO)		# count inputs of vector
+	l.s	 $f12, ($s0)		# load from address of $s0 into $f12
+	li	 $v0, 2			# print $f12
+	syscall
+	addiu	 $s0, $s0, 4		# index of address +1
+	add.s	 $f10, $f10, $f11	# $f10 = i++
+	c.lt.s	 $f10, $f2		# while i<n
+	bc1f	 rtn			# loop to print vector element (pVE)
+	nl
+	j	 pVE
+#-------Return to the main function-----
+rtn:	jr	 $ra
+#<<<<<<<<<<<<<<<<<<<<<<<<<<Matrix Vector Multiplication>>>>>>>>>>>>>>>>>>>>>>>>>>
+MVM:	li	 $t0, 0			# $t0: i=0
+	li	 $t4, 0			# $t4: k=0
+#-------Create an array of size n ------
+	move	 $a0, $v1		# argument[0] = n
+	sll	 $a0, $a0, 2		# float = 4 bytes
+	li	 $v0, 9
+	syscall
+	move	 $s3, $v0		# $s3: float V = new float[n]
+#-------for (i=0; i<n; i++) ------------
+sum.I:	l.s	 $f30, zero		# $f30: float sum = 0
+	bge	 $t0, $v1, return	# while i<n
+	li	 $t1, 0			# $t1 = j=0
+#-------for (j=0; j<n; i++) ------------
+sum.J:	mulu	 $t3, $t0, $v1		# $t3 = [i]
+	mulu	 $t3, $t3, 4		# address of [i]
+	mulu	 $t2, $t1, 4		# address of [j]
+	addu	 $t3, $t3, $t2		# $t3 = [i][j]
+	add	 $s0, $s1, $t3		# address of A[i][j]
+#-------Do multiplication MxV ----------
+	l.s	 $f20, ($s0)		# $f20 = A[i][j]
+	add	 $s0, $s2, $t2		# address of X[j]
+	l.s	 $f21, ($s0)		# $f21 = X[j]
+	mul.s	 $f21, $f20, $f21	# $f21 = A[i][j] * X[j]
+#-------sum = sum + A[i][j] * X[j] -----
+	add.s	 $f30, $f30, $f21	# $f30 = sum
+	add	 $t1, $t1, 1		# $t1 = j ++
+	blt	 $t1, $v1, sum.J
+#-------input sum value into V[i] ------
+	add	 $s0, $s3, $t4		# adress of new V
+	add	 $t4, $t4, 4		# increment the index of the address of new V
+	s.s	 $f30, ($s0)
+	addi	 $t0, $t0, 1		# $t0 = i ++
+	j	 sum.I
+#-------Return to the main function-----
+return:	move	 $s0, $s3		# $s0 = address of V
+	jr	 $ra
